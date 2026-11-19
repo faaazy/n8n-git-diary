@@ -1,0 +1,355 @@
+{
+  "name": "GitHub commit -> Gemini study note -> Telegram",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "YOUR_WEBHOOK_PATH",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -48,
+        -80
+      ],
+      "id": "8944f745-5d58-4758-946a-e9677429ba3e",
+      "name": "Webhook"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "217cc22f-4feb-4852-ad2a-8b47db5afd40",
+              "name": "commitMessage",
+              "value": "={{ $json.message }}",
+              "type": "string"
+            },
+            {
+              "id": "b6469f59-749f-404d-9ef2-82d5e06194f7",
+              "name": "commitId",
+              "value": "={{ $json.id }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.5,
+      "position": [
+        384,
+        0
+      ],
+      "id": "bd362662-20e6-4557-8eeb-64d01ce79559",
+      "name": "Edit Fields"
+    },
+    {
+      "parameters": {
+        "fieldToSplitOut": "body.commits",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitOut",
+      "typeVersion": 1,
+      "position": [
+        176,
+        0
+      ],
+      "id": "64a420c4-58f4-4a29-bbd6-81e52b71e411",
+      "name": "Split Out1"
+    },
+    {
+      "parameters": {
+        "url": "=https://api.github.com/repos/YOUR_GITHUB_USER/YOUR_REPO/commits/{{ $json.commitId }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        656,
+        0
+      ],
+      "id": "4b09b455-a97c-4223-a53f-4db2ac39563c",
+      "name": "HTTP Request"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "07481cd4-91bf-4885-9719-2dbf105171f2",
+              "name": "commitId",
+              "value": "={{ $json.sha }}",
+              "type": "string"
+            },
+            {
+              "id": "4676d73d-7dd9-4062-8e32-b5633b13e378",
+              "name": "commitMessage",
+              "value": "={{ $json.commit.message }}",
+              "type": "string"
+            },
+            {
+              "id": "9fbba9be-8513-4dcc-9b55-aba26708666b",
+              "name": "files",
+              "value": "={{ $json.files }}",
+              "type": "array"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.5,
+      "position": [
+        848,
+        0
+      ],
+      "id": "a9bb75d5-5b6f-424e-a5ea-7fd4b1a2e7fb",
+      "name": "Edit Fields1"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "6da9641b-3519-4312-ae27-4ced236283f2",
+              "name": "reviewInput",
+              "value": "=Commit: {{ $json.commitMessage }}\n\nChanged files:\n{{ $json.files.map(file => \n  `File: ${file.filename}\n  Status: ${file.status}\n  Changes: +${file.additions} / -${file.deletions}\n\n  Diff: ${file.patch}`\n).join('\\n---\\n') }}\n",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.5,
+      "position": [
+        1072,
+        0
+      ],
+      "id": "c9868bc8-c45c-48ed-a8fd-4e0188c61a67",
+      "name": "Edit Fields2"
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "mode": "list",
+          "value": "models/gemini-3-flash-preview"
+        },
+        "messages": {
+          "values": [
+            {
+              "content": "=Проанализируй этот Git commit и сделай короткую личную заметку о том, что я сделал и чему я научился.\n\nПиши ТОЛЬКО НА РУССКОМ.\n\nСтиль:\n\n* Пиши от первого лица, как будто это я сам записываю свои мысли и выводы после работы.\n* Используй формулировки вроде: «Я добавил...», «Я проверил...», «Я понял...», «Я узнал...», «Здесь я разобрался с...».\n* Не обращайся ко мне и не говори обо мне в третьем лице.\n* Пиши простым, естественным и немного неформальным языком.\n* Представь, что это мой личный конспект для себя, а не документация и не code review.\n* Не используй слишком формальный, академичный или корпоративный стиль.\n* Не расписывай очевидные вещи.\n* Кратко объясняй, что именно произошло и что полезного я из этого вынес.\n* Не придумывай технологии, причины изменений или знания, которых нельзя понять из commit.\n* Если commit простой и нового материала практически нет, прямо скажи об этом.\n* Если изменение было сделано только для проверки или тестирования, так и напиши.\n* Не используй эмодзи.\n\nЧто нужно вернуть:\n\n1. `summary` — 1-2 коротких предложения от первого лица о том, что я сделал.\n2. `learned` — 1-3 пункта от первого лица о том, что я понял или узнал. Если из commit нечему было учиться, верни пустой массив.\n3. `explanation` — короткое объяснение от первого лица: как я понимаю то, что произошло.\n4. `example` — небольшой пример кода, если он действительно помогает понять изученное. Если пример не нужен, верни пустую строку.\n\nФормат ответа — ТОЛЬКО валидный JSON:\n\n{\n\"summary\": \"...\",\n\"learned\": [\n\"...\",\n\"...\"\n],\n\"explanation\": \"...\",\n\"example\": \"\"\n}\n\nНе используй Markdown вне JSON.\n\nВот данные commit:\n\n{{ $json.reviewInput }}\n"
+            }
+          ]
+        },
+        "jsonOutput": true,
+        "builtInTools": {},
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.googleGemini",
+      "typeVersion": 1.2,
+      "position": [
+        1280,
+        -112
+      ],
+      "id": "20f775bf-580e-4bb8-a016-00954f7e46b7",
+      "name": "Message a model",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "YOUR_CREDENTIAL_ID",
+          "name": "Google Gemini API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "b27eb46e-9c7f-4d02-b9d7-17ca5c824bef",
+              "name": "review",
+              "value": "={{ JSON.parse($json.content.parts[0].text) }}",
+              "type": "object"
+            },
+            {
+              "id": "ec262393-9c4b-41fb-ba7c-af75f1d3a50a",
+              "name": "commitId",
+              "value": "={{ $('Edit Fields1').item.json.commitId }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.5,
+      "position": [
+        1584,
+        -112
+      ],
+      "id": "58359a48-261f-422c-b31a-1784e9b048a2",
+      "name": "Edit Fields3"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "ab283cbd-2f82-4b96-9400-c7cddf738891",
+              "name": "telegramMessage",
+              "value": "={{ `Что я сделал \n\n${$json.review.summary}  \n\nЧто я узнал\n\n${$json.review.learned.map(item => \n`• ${item}`).join('\\n')} \n\nКак я это понял\n\n${$json.review.explanation} \n\nПример\n\n\\`\\`\\`\n${$json.review.example || 'Пример не нужен'}\n\\`\\`\\`\n\nCommit\n\nhttps://github.com/YOUR_GITHUB_USER/YOUR_REPO/commit/${$('Edit Fields3').item.json.commitId}\n`\n}}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.5,
+      "position": [
+        1808,
+        -112
+      ],
+      "id": "99b7fb53-d17c-457e-b443-97a267b07961",
+      "name": "Edit Fields4"
+    },
+    {
+      "parameters": {
+        "chatId": "YOUR_TELEGRAM_CHAT_ID",
+        "text": "={{ $json.telegramMessage }}",
+        "additionalFields": {
+          "message_thread_id": 2
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        2080,
+        -112
+      ],
+      "id": "54bbd065-ef71-41b7-a47f-5a66463756bf",
+      "name": "Send a text message",
+      "credentials": {
+        "telegramApi": {
+          "id": "YOUR_CREDENTIAL_ID",
+          "name": "Telegram Bot"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Split Out1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split Out1": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields1": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields2": {
+      "main": [
+        [
+          {
+            "node": "Message a model",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Message a model": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields3": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields4",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields4": {
+      "main": [
+        [
+          {
+            "node": "Send a text message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "meta": {
+    "templateCredsSetupCompleted": true
+  },
+  "nodeGroups": [],
+  "tags": []
+}
