@@ -1,6 +1,6 @@
 <div align="center">
 
-# Commit Notes
+# Git Diary
 
 **Каждый `git push` превращается в короткий учебный конспект в Telegram**
 
